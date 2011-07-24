@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:context="http://www.springframework.org/schema/context" xmlns:file="http://www.springframework.org/schema/integration/file"
+    xmlns:int="http://www.springframework.org/schema/integration" xmlns:jmx="http://www.springframework.org/schema/integration/jmx"
+    xmlns:stream="http://www.springframework.org/schema/integration/stream"
+    xmlns:task="http://www.springframework.org/schema/task"
+    xsi:schemaLocation="http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration-2.0.xsd
+		http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task-3.0.xsd
+		http://www.springframework.org/schema/integration/file http://www.springframework.org/schema/integration/file/spring-integration-file-2.0.xsd
+		http://www.springframework.org/schema/integration/jmx http://www.springframework.org/schema/integration/jmx/spring-integration-jmx-2.0.xsd
+		http://www.springframework.org/schema/integration/stream http://www.springframework.org/schema/integration/stream/spring-integration-stream.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd">
+
+    <!-- 
+    ###########################################################################
+                             SPRING FRAMEWORK CONFIGURATION
+    ###########################################################################
+     -->
+<!--  TODO - decide whether we need to open this up a bit to a wider package.  -->
+    <context:component-scan base-package="ex.splitters" />
+
+    <bean id="systemInfo" class="ex.util.SystemInfo" />
+ 
+    <bean id="applicationProperties"
+        class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+        <property name="properties">
+            <props>
+                <prop key="channels.observationProcessingThreads">#{systemInfo.getNumProcessors()}</prop>            
+            </props>
+        </property>
+        
+        <property name="locations">
+            <list>
+                 <value>classpath:paths.properties</value>
+                 <value>classpath:database.properties</value>
+            </list>
+        </property>
+    </bean>
+    
+
+    <!-- 
+    ###########################################################################
+                             DATABASE CONFIGURATION
+    ###########################################################################
+     -->
+
+    <bean id="dataSource" class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+        <property name="driverClassName" value="${database.driverClassName}" />
+        <property name="url" value="${database.url}" />
+        <property name="username" value="${database.username}" />
+        <property name="password" value="${database.password}" />
+    </bean>
+
+    <bean id="sessionFactory" class="org.springframework.orm.hibernate3.annotation.AnnotationSessionFactoryBean">
+
+        <property name="dataSource">
+            <ref bean="dataSource" />
+        </property>
+
+        <property name="hibernateProperties">
+            <props>
+                <prop key="hibernate.dialect">${hibernate.dialect}</prop>
+                
+                <!-- Uncomment for debugging output of hibernate calls -->
+                <!-- <prop key="hibernate.show_sql">true</prop> -->
+            </props>
+        </property>
+        
+        <property name="packagesToScan" value="ex.model" />
+    </bean>
+    
+    
+    <!-- 
+    ###########################################################################
+                             DAO CONFIGURATION
+    ###########################################################################
+     -->
+    <bean name="observationDao" class="ex.dao.ObservationDao">
+        <property name="sessionFactory" ref="sessionFactory" />
+    </bean>
+
+    <!-- 
+    ###########################################################################
+                             SERVICE BEANS CONFIGURATION
+    ###########################################################################
+     -->
+    <bean name="dbDumpPersister" class="ex.services.DatabaseDumpPersister" />
+    
+    <bean name="fileServices" class="ex.services.FileServices">
+        <property name="archiveDirectory" value="${paths.archive}" />
+        <property name="errorDirectory" value="${paths.error}" />
+        <property name="processingDirectory" value="${paths.processing}" />
+    </bean>
+
+    <!-- 
+    ###########################################################################
+                             MONITORING CONFIGURATION
+    ###########################################################################
+     -->
+    <jmx:mbean-export default-domain="ex" server="mbeanServer" />
+
+    <bean id="mbeanServer" class="org.springframework.jmx.support.MBeanServerFactoryBean" />
+
+    <bean id="registry" class="org.springframework.remoting.rmi.RmiRegistryFactoryBean">
+        <property name="port" value="1090" />
+    </bean>
+
+    <bean id="jmxAttributeSource"
+        class="org.springframework.jmx.export.annotation.AnnotationJmxAttributeSource" />
+
+    <bean id="assembler"
+        class="org.springframework.jmx.export.assembler.MetadataMBeanInfoAssembler">
+        <property name="attributeSource" ref="jmxAttributeSource" />
+    </bean>
+
+    <bean id="serverConnector" class="org.springframework.jmx.support.ConnectorServerFactoryBean">
+        <property name="objectName" value="connector:name=rmi" />
+        <property name="serviceUrl"
+            value="service:jmx:rmi://localhost/jndi/rmi://localhost:1090/myconnector" />
+    </bean>
+	
+
+    <!-- 
+    ###########################################################################
+                             MESSAGING CONFIGURATION
+    ###########################################################################
+     -->
+
+    <!--
+        Keep a list in the header of all endpoints that the messages passes through. Used to determine what steps should
+        be taken in the event of an error. The data be stored in the following header key:
+        org.springframework.integration.history.MessageHistory.HEADER_NAME
+    -->
+    <int:message-history />
+
+    <!-- Read files from the input directory -->
+    <file:inbound-channel-adapter id="fileChannel"
+        directory="${paths.input}" prevent-duplicates="true">
+        <int:poller max-messages-per-poll="10" fixed-rate="100" />
+        
+    </file:inbound-channel-adapter>
+
+    <!-- Prepare the file for processing (includes error handling) -->
+    <int:chain id="fileInitializationChain" input-channel="fileChannel" output-channel="fileSplitterChannel">
+        <!-- If there is an exception, pass the details to an error channel -->
+        <int:header-enricher>
+            <int:error-channel ref="sourceFileErrorChannel" />
+        </int:header-enricher>
+
+        <!-- Move file to processing direcotry -->
+        <int:service-activator ref="fileServices" method="moveFileToProcessingDirectory" />
+
+        <!-- Copy file to archive directory -->
+        <int:service-activator ref="fileServices" method="copyFileToArchiveDirectory" />
+     </int:chain>
+
+    <int:channel id="fileSplitterChannel" />
+
+    <!-- Split the file into a list of observations -->
+    <int:splitter id="fileToObservationSplitter" input-channel="fileSplitterChannel"
+        output-channel="toFahrenheitTransformerChannel">
+        <bean class="ex.splitters.FileToObservationSplitter" />
+    </int:splitter>
+
+    <!-- This channel has an executor to allow parallel processing of the Observations -->
+    <task:executor id="toFahrenheitTransformerChannelExecutor" pool-size="${channels.observationProcessingThreads}"
+        queue-capacity="${channels.observationProcessingThreads}" rejection-policy="CALLER_RUNS" />
+    <int:channel id="toFahrenheitTransformerChannel">
+        <int:dispatcher task-executor="toFahrenheitTransformerChannelExecutor" />
+    </int:channel>
+
+    <!--  Convert the Observation's temperatures from Celsius to Fahrenheit -->
+    <int:transformer id="toFahrenheitTransformer" input-channel="toFahrenheitTransformerChannel"
+        output-channel="locationRedactorChannel">
+        <bean class="ex.transformers.ToFahrenheitTransformer" />
+    </int:transformer>
+
+    <int:channel id="locationRedactorChannel" datatype="ex.model.Observation" />
+
+    <!-- Redact location information if the Observation is from California -->
+    <int:transformer id="locationRedactorTransformer"
+        input-channel="locationRedactorChannel" output-channel="surfReportEnricherChannel">
+        <bean class="ex.transformers.redactors.LocationRedactor" />
+    </int:transformer>
+	
+    <int:channel id="surfReportEnricherChannel" />
+
+    <!-- Add the supplemental surf report -->
+    <int:transformer id="surfReportEnricher" input-channel="surfReportEnricherChannel"
+        output-channel="golfReportEnricherChannel">
+        <bean class="ex.transformers.enrichers.SurfReportEnricher" />
+    </int:transformer>
+
+    <int:channel id="golfReportEnricherChannel" />
+
+    <!-- Add the supplemental golf report -->
+    <int:transformer id="golfReportEnricher" input-channel="golfReportEnricherChannel"
+        output-channel="observationPersistenceChannel">
+        <bean class="ex.transformers.enrichers.GolfReportEnricher" />
+    </int:transformer>
+
+    <int:channel id="observationPersistenceChannel" />
+
+    <!-- Persist the Observation by storing it in the database -->
+    <int:service-activator id="databaseDumpPersister"
+        input-channel="observationPersistenceChannel" output-channel="sourceFileDeletionObservationAggregatorChannel"
+        ref="dbDumpPersister" method="persist" />
+
+    <int:channel id="sourceFileDeletionObservationAggregatorChannel">
+        <int:interceptors>
+            <int:wire-tap channel="logger" />
+        </int:interceptors>
+    </int:channel>
+    <int:logging-channel-adapter id="logger" level="DEBUG" log-full-message="true" />
+
+    <!-- Aggregate all of the Observations from the same file -->
+    <int:aggregator id="sourceFileDeletionObservationAggregator"
+        input-channel="sourceFileDeletionObservationAggregatorChannel"
+        output-channel="sourceFileDeletionChannel" discard-channel="sourceFileErrorChannel"
+        send-partial-result-on-expiry="false" send-timeout="1000" />
+
+    <int:channel id="sourceFileDeletionChannel" />
+    
+    <!-- Delete the source file from the processing directory -->
+    <int:service-activator id="sourceFileDeleter" input-channel="sourceFileDeletionChannel"
+        output-channel="nullChannel" ref="fileServices" method="deleteSourceFile" />
+
+    <int:channel id="sourceFileErrorChannel" />
+
+    <!-- Move source file to the error directory -->
+    <int:transformer id="sourceFileErrorHandler" input-channel="sourceFileErrorChannel"
+        output-channel="nullChannel">
+        <bean class="ex.transformers.SourceFileErrorHandler">
+            <property name="processingDirectory" value="${paths.processing}" />
+            <property name="errorDirectory" value="${paths.error}" />
+        </bean>
+    </int:transformer>
+</beans>

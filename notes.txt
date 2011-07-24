@@ -1,0 +1,158 @@
+Notes
+
+Things to resolve best practices on:
+	-logging
+	-performance metrics
+	-error paths
+	-can static methods be endpoints?
+	-package layout
+	
+	
+Options for Package Layout
+
+ex
+ex.Main
+
+ex.model
+ex.model.Record
+
+ex.util
+ex.util.FileNameUtils
+ex.util.TemperatureUtils
+
+ex.transformers
+ex.transformers.ToFahrenheitTransformer
+ex.transformers.enrichers.GolfReportEnricher
+ex.transformers.enrichers.SurfReportEnricher
+ex.transformers.redactors.LocationRedactor
+
+ex.routers
+ex.routers.GolfReportRouter
+ex.routers.SurfReportRouter
+ex.routers.LocationRedactorRouter
+ex.routers.ToFahrenheitRouter
+
+ex.splitters
+ex.splitters.FileToRecordSplitter
+
+===
+
+ex
+ex.Main
+
+ex.model
+ex.model.Record
+
+ex.util
+ex.util.FileNameUtils
+ex.util.TemperatureUtils
+
+ex.transformers
+ex.transformers.ToFahrenheitTransformer
+
+ex.enrichers
+ex.enrichers.GolfReportEnricher
+ex.enrichers.SurfReportEnricher
+
+ex.redactors.
+ex.redactors.LocationRedactor
+
+ex.routers
+ex.routers.GolfReportRouter
+ex.routers.SurfReportRouter
+ex.routers.LocationRedactorRouter
+ex.routers.ToFahrenheitRouter
+
+ex.splitters
+ex.splitters.FileToRecordSplitter
+
+===
+
+ex
+ex.Main
+
+ex.model
+ex.model.Record
+
+ex.util
+ex.util.FileNameUtils
+ex.util.TemperatureUtils
+
+ex.transformers
+ex.transformers.ToFahrenheitTransformer
+ex.transformers.GolfReportEnricher
+ex.transformers.SurfReportEnricher
+ex.transformers.LocationRedactor
+
+ex.routers
+ex.routers.GolfReportRouter
+ex.routers.SurfReportRouter
+ex.routers.LocationRedactorRouter
+ex.routers.ToFahrenheitRouter
+
+ex.splitters
+ex.splitters.FileToRecordSplitter
+
+===
+
+ex
+ex.Main
+
+ex.model
+ex.model.Record
+
+ex.util
+ex.util.FileNameUtils
+ex.util.TemperatureUtils
+
+ex.golf
+ex.golf.GolfReportEnricher
+ex.golf.GolfReportRouter
+
+ex.surf
+ex.surf.SurfReportRouter
+ex.surf.SurfReportEnricher
+
+ex.location
+ex.location.LocationRedactorRouter
+ex.location.LocationRedactor
+
+ex.temperature
+ex.temperature.ToFahrenheitRouter
+ex.temperature.ToFahrenheitTransformer
+
+ex.files
+ex.files.FileToRecordSplitter
+
+
+One of these is the deprecated way of doing a poller for a file input channel.
+       <!--
+
+              <int:poller max-messages-per-poll="2" fixed-rate="5000" />
+       -->
+       
+       <int:poller max-messages-per-poll="2">
+           <int:interval-trigger interval="5" time-unit="SECONDS"/>
+       </int:poller>
+
+       
+       ====
+       
+ MISC STUFF TO KEEP AND EVENTUALLY DELETE
+ <!-- 
+THE QUEUE CHANNEL - TEMPORARILY DISABLED
+	<int:channel id="surfReportEnricherChannel">
+		<int:queue capacity="10"/>		
+	</int:channel>
+    <int:poller default="true" max-messages-per-poll="2" fixed-rate="5000" />
+-->	
+	<!--  
+	<task:scheduler id="surfReportScheduler" pool-size="5"/>
+	<int:publish-subscribe-channel id="surfReportEnricherChannel" task-executor="surfReportScheduler"/>
+	-->
+		
+<!-- 	
+	<i:publish-subscribe-channel id="tripNotifications" datatype=
+"com.manning.siia.integration.notifications.TripNotification" task-executor="taskScheduler"/>
+	<task:executor id="executor" pool-size="5"/>
+-->

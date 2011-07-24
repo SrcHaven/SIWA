@@ -1,0 +1,43 @@
+#Comments preceded by a '#'
+
+#Create the database:
+CREATE DATABASE `weather_data`
+	
+#Create the observations table:
+CREATE TABLE `observations` (
+  `observationID` int(11) NOT NULL AUTO_INCREMENT,
+  `wbanNo` varchar(5) NOT NULL,
+  `utcDate` varchar(8) NOT NULL,
+  `utcTime` varchar(4) NOT NULL,
+  `lstDate` varchar(8) DEFAULT NULL,
+  `lstTime` varchar(4) DEFAULT NULL,
+  `crxVn` varchar(6) DEFAULT NULL,
+  `longitude` varchar(7) DEFAULT NULL,
+  `latitude` varchar(7) DEFAULT NULL,
+  `tCalc` varchar(7) DEFAULT NULL,
+  `tHrAvg` varchar(7) DEFAULT NULL,
+  `tMax` varchar(7) DEFAULT NULL,
+  `tMin` varchar(7) DEFAULT NULL,
+  `temperatureUnit` char(1) DEFAULT NULL,
+  PRIMARY KEY (`observationID`)
+) ENGINE=InnoDB AUTO_INCREMENT=51 DEFAULT CHARSET=latin1
+
+#Create the supplemental_reports table:
+CREATE TABLE `supplemental_reports` (
+  `suppRepID` int(11) NOT NULL AUTO_INCREMENT,
+  `observationID` int(10) NOT NULL DEFAULT '-1',
+  `reportType` varchar(10) NOT NULL,
+  `reportContents` text NOT NULL,
+  PRIMARY KEY (`suppRepID`),
+  KEY `recordID` (`suppRepID`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+
+#Clear all tables:
+truncate weather_data.observations;
+truncate weather_data.supplemental_reports;
+
+#Count rows in the observations table:
+select count(*) from observations;
+
+#Count rows in the supplemental_reports table:
+select count(*) from supplemental_reports;
