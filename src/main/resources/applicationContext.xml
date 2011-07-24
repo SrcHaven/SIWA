@@ -18,9 +18,9 @@
     ###########################################################################
      -->
 <!--  TODO - decide whether we need to open this up a bit to a wider package.  -->
-    <context:component-scan base-package="ex.splitters" />
+    <context:component-scan base-package="com.srchaven.siwa.splitters" />
 
-    <bean id="systemInfo" class="ex.util.SystemInfo" />
+    <bean id="systemInfo" class="com.srchaven.siwa.util.SystemInfo" />
  
     <bean id="applicationProperties"
         class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
@@ -67,7 +67,7 @@
             </props>
         </property>
         
-        <property name="packagesToScan" value="ex.model" />
+        <property name="packagesToScan" value="com.srchaven.siwa.model" />
     </bean>
     
     
@@ -76,7 +76,7 @@
                              DAO CONFIGURATION
     ###########################################################################
      -->
-    <bean name="observationDao" class="ex.dao.ObservationDao">
+    <bean name="observationDao" class="com.srchaven.siwa.dao.ObservationDao">
         <property name="sessionFactory" ref="sessionFactory" />
     </bean>
 
@@ -85,9 +85,9 @@
                              SERVICE BEANS CONFIGURATION
     ###########################################################################
      -->
-    <bean name="dbDumpPersister" class="ex.services.DatabaseDumpPersister" />
+    <bean name="dbDumpPersister" class="com.srchaven.siwa.services.DatabaseDumpPersister" />
     
-    <bean name="fileServices" class="ex.services.FileServices">
+    <bean name="fileServices" class="com.srchaven.siwa.services.FileServices">
         <property name="archiveDirectory" value="${paths.archive}" />
         <property name="errorDirectory" value="${paths.error}" />
         <property name="processingDirectory" value="${paths.processing}" />
@@ -98,7 +98,7 @@
                              MONITORING CONFIGURATION
     ###########################################################################
      -->
-    <jmx:mbean-export default-domain="ex" server="mbeanServer" />
+    <jmx:mbean-export default-domain="com.srchaven.siwa" server="mbeanServer" />
 
     <bean id="mbeanServer" class="org.springframework.jmx.support.MBeanServerFactoryBean" />
 
@@ -160,7 +160,7 @@
     <!-- Split the file into a list of observations -->
     <int:splitter id="fileToObservationSplitter" input-channel="fileSplitterChannel"
         output-channel="toFahrenheitTransformerChannel">
-        <bean class="ex.splitters.FileToObservationSplitter" />
+        <bean class="com.srchaven.siwa.splitters.FileToObservationSplitter" />
     </int:splitter>
 
     <!-- This channel has an executor to allow parallel processing of the Observations -->
@@ -173,15 +173,15 @@
     <!--  Convert the Observation's temperatures from Celsius to Fahrenheit -->
     <int:transformer id="toFahrenheitTransformer" input-channel="toFahrenheitTransformerChannel"
         output-channel="locationRedactorChannel">
-        <bean class="ex.transformers.ToFahrenheitTransformer" />
+        <bean class="com.srchaven.siwa.transformers.ToFahrenheitTransformer" />
     </int:transformer>
 
-    <int:channel id="locationRedactorChannel" datatype="ex.model.Observation" />
+    <int:channel id="locationRedactorChannel" datatype="com.srchaven.siwa.model.Observation" />
 
     <!-- Redact location information if the Observation is from California -->
     <int:transformer id="locationRedactorTransformer"
         input-channel="locationRedactorChannel" output-channel="surfReportEnricherChannel">
-        <bean class="ex.transformers.redactors.LocationRedactor" />
+        <bean class="com.srchaven.siwa.transformers.redactors.LocationRedactor" />
     </int:transformer>
 	
     <int:channel id="surfReportEnricherChannel" />
@@ -189,7 +189,7 @@
     <!-- Add the supplemental surf report -->
     <int:transformer id="surfReportEnricher" input-channel="surfReportEnricherChannel"
         output-channel="golfReportEnricherChannel">
-        <bean class="ex.transformers.enrichers.SurfReportEnricher" />
+        <bean class="com.srchaven.siwa.transformers.enrichers.SurfReportEnricher" />
     </int:transformer>
 
     <int:channel id="golfReportEnricherChannel" />
@@ -197,7 +197,7 @@
     <!-- Add the supplemental golf report -->
     <int:transformer id="golfReportEnricher" input-channel="golfReportEnricherChannel"
         output-channel="observationPersistenceChannel">
-        <bean class="ex.transformers.enrichers.GolfReportEnricher" />
+        <bean class="com.srchaven.siwa.transformers.enrichers.GolfReportEnricher" />
     </int:transformer>
 
     <int:channel id="observationPersistenceChannel" />
@@ -231,7 +231,7 @@
     <!-- Move source file to the error directory -->
     <int:transformer id="sourceFileErrorHandler" input-channel="sourceFileErrorChannel"
         output-channel="nullChannel">
-        <bean class="ex.transformers.SourceFileErrorHandler">
+        <bean class="com.srchaven.siwa.transformers.SourceFileErrorHandler">
             <property name="processingDirectory" value="${paths.processing}" />
             <property name="errorDirectory" value="${paths.error}" />
         </bean>
