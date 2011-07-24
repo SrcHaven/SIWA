@@ -13,7 +13,7 @@ import com.srchaven.siwa.model.Observation;
  * Transformer that deletes a source file from the processing directory.
  */
 //TODO: Bean validation
-//TODO: Change from transformer to service/service activator. Possibly collapse all file utilties into a single bean?
+//TODO: Change from transformer to service/service activator. Possibly collapse all file utilities into a single bean?
 public class SourceFileDeleter
 {
 	/** The logger for this class */

@@ -10,7 +10,7 @@ import org.springframework.integration.annotation.Transformer;
  * file at its new location.
  */
 //TODO: Bean validation
-//TODO: Change from transformer to service/service activator. Possibly collapse all file utilties into a single bean?
+//TODO: Change from transformer to service/service activator. Possibly collapse all file utilities into a single bean?
 public class FileStager
 {
 	/** The logger for this class */
