@@ -134,34 +134,88 @@
     -->
     <int:message-history />
 
+
+
+    <!-- 
+        PART 1: Prepare files for processing
+     -->
+     
     <!-- Read files from the input directory -->
-    <file:inbound-channel-adapter id="fileChannel"
+    <file:inbound-channel-adapter id="inputFileChannel"
         directory="${paths.input}" prevent-duplicates="true">
         <int:poller max-messages-per-poll="10" fixed-rate="100" />
-        
     </file:inbound-channel-adapter>
 
-    <!-- Prepare the file for processing (includes error handling) -->
-    <int:chain id="fileInitializationChain" input-channel="fileChannel" output-channel="fileSplitterChannel">
-        <!-- If there is an exception, pass the details to an error channel -->
-        <int:header-enricher>
-            <int:error-channel ref="sourceFileErrorChannel" />
-        </int:header-enricher>
+    <!-- If there is an exception, pass the details to the file error channel -->
+    <int:header-enricher input-channel="inputFileChannel" output-channel="applyTimestampChannel"
+            default-overwrite="true">
+        <int:error-channel ref="sourceFileErrorChannel" />
+    </int:header-enricher>
+    
+    <int:channel id="applyTimestampChannel" />
+    
+    <!-- Rename the file to include a timestamp -->
+    <int:service-activator ref="fileServices" method="addTimestampToFilename" input-channel="applyTimestampChannel"
+        output-channel="archiveFileChannel" />
+    
+    <int:channel id="archiveFileChannel" />
 
-        <!-- Move file to processing direcotry -->
-        <int:service-activator ref="fileServices" method="moveFileToProcessingDirectory" />
+    <!-- Copy file to archive directory -->
+    <int:service-activator ref="fileServices" method="copyFileToArchiveDirectory" input-channel="archiveFileChannel"
+        output-channel="moveFileToProcessingDirChannel" />
+    
+    <!-- Move file to processing directory -->
+    <file:outbound-channel-adapter id="moveFileToProcessingDirChannel" directory="${paths.processing}"
+        delete-source-files="true" />
 
-        <!-- Copy file to archive directory -->
-        <int:service-activator ref="fileServices" method="copyFileToArchiveDirectory" />
-     </int:chain>
 
+
+
+    <!-- 
+        PART 2: Process files
+     -->
+     
+    <!-- Read files from the working directory -->
+    <file:inbound-channel-adapter id="workingFileChannel"
+        directory="${paths.processing}" prevent-duplicates="true"
+        filename-regex="^[^.].*$">
+        <int:poller max-messages-per-poll="10" fixed-rate="100" />
+    </file:inbound-channel-adapter>
+
+    <!-- If there is an exception, pass the details to the file error channel -->
+    <int:header-enricher input-channel="workingFileChannel" output-channel="convertToStringChannel"
+            default-overwrite="true">
+        <int:error-channel ref="sourceFileErrorChannel" />
+    </int:header-enricher>
+    
+    <int:channel id="convertToStringChannel" />
+
+    <!-- Load the file into a string for further processing -->
+    <file:file-to-string-transformer input-channel="convertToStringChannel" output-channel="fileSplitterChannel"/>
+    
     <int:channel id="fileSplitterChannel" />
 
-    <!-- Split the file into a list of observations -->
+    <!-- Split the file into a list of raw observations -->
     <int:splitter id="fileToObservationSplitter" input-channel="fileSplitterChannel"
-        output-channel="toFahrenheitTransformerChannel">
-        <bean class="com.srchaven.siwa.splitters.FileToObservationSplitter" />
+            output-channel="enrichObsErrorHeaderChannel">
+        <bean class="com.srchaven.siwa.splitters.FileContentsToRawObservationSplitter" />
     </int:splitter>
+    
+    <int:channel id="enrichObsErrorHeaderChannel" />
+
+    <!-- If there is an exception, pass the details to the observation error channel -->
+    <int:header-enricher input-channel="enrichObsErrorHeaderChannel" output-channel="convertToObsChannel"
+            default-overwrite="true">
+        <int:error-channel ref="observationErrorChannel" />
+    </int:header-enricher>
+    
+    <int:channel id="convertToObsChannel" />
+    
+    <!-- Transform the raw observation into an Observation object -->
+    <int:transformer id="toObservationTransformer" input-channel="convertToObsChannel"
+        output-channel="toFahrenheitTransformerChannel">
+        <bean class="com.srchaven.siwa.transformers.RawObservationToObservationTransformer" />
+    </int:transformer>
 
     <!-- This channel has an executor to allow parallel processing of the Observations -->
     <task:executor id="toFahrenheitTransformerChannelExecutor" pool-size="${channels.observationProcessingThreads}"
@@ -208,17 +262,29 @@
         ref="dbDumpPersister" method="persist" />
 
     <int:channel id="sourceFileDeletionObservationAggregatorChannel">
-        <int:interceptors>
+<!--        <int:interceptors>
             <int:wire-tap channel="logger" />
-        </int:interceptors>
+        </int:interceptors>-->
     </int:channel>
-    <int:logging-channel-adapter id="logger" level="DEBUG" log-full-message="true" />
+<!--    <int:logging-channel-adapter id="logger" level="DEBUG" log-full-message="true" />-->
 
+
+<!-- TODO: There should be a header enricher here to change to a new error channel. From the aggregator on we aren't at the observation level anymore -->
     <!-- Aggregate all of the Observations from the same file -->
     <int:aggregator id="sourceFileDeletionObservationAggregator"
         input-channel="sourceFileDeletionObservationAggregatorChannel"
-        output-channel="sourceFileDeletionChannel" discard-channel="sourceFileErrorChannel"
-        send-partial-result-on-expiry="false" send-timeout="1000" />
+        output-channel="badObsOutputChannel"
+        send-partial-result-on-expiry="false" send-timeout="1000">
+        <bean class="com.srchaven.siwa.aggregators.ObservationAggregator" />
+    </int:aggregator>
+<!-- TODO Add this back into the aggregator, but with a better error channel: discard-channel="sourceFileErrorChannel" -->
+
+    <int:channel id="badObsOutputChannel" />
+
+    <int:service-activator id="badObsOutputter" input-channel="badObsOutputChannel"
+        output-channel="sourceFileDeletionChannel">
+        <bean class="com.srchaven.siwa.services.BadObservationOutputter" />
+    </int:service-activator>
 
     <int:channel id="sourceFileDeletionChannel" />
     
@@ -226,14 +292,51 @@
     <int:service-activator id="sourceFileDeleter" input-channel="sourceFileDeletionChannel"
         output-channel="nullChannel" ref="fileServices" method="deleteSourceFile" />
 
+
+
+    <!--
+        Error handling 
+     -->
+
+    <!-- BEGIN File-level error handling -->
     <int:channel id="sourceFileErrorChannel" />
+    
+    <!-- Convert the incoming object into an ErrorDetails Object -->
+    <int:transformer id="srcFileErrorFormatter" input-channel="sourceFileErrorChannel"
+            output-channel="processSourceFileErrorChannel">
+        <bean class="com.srchaven.siwa.errorhandling.transformers.ErrorDetailsBuilder" />
+    </int:transformer>
+    
+    <int:channel id="processSourceFileErrorChannel" />
 
     <!-- Move source file to the error directory -->
-    <int:transformer id="sourceFileErrorHandler" input-channel="sourceFileErrorChannel"
-        output-channel="nullChannel">
-        <bean class="com.srchaven.siwa.transformers.SourceFileErrorHandler">
+    <int:service-activator id="sourceFileErrorHandler" input-channel="processSourceFileErrorChannel"
+            output-channel="nullChannel">
+        <bean class="com.srchaven.siwa.errorhandling.services.SourceFileErrorHandler">
             <property name="processingDirectory" value="${paths.processing}" />
             <property name="errorDirectory" value="${paths.error}" />
         </bean>
+    </int:service-activator>
+    <!-- END File-level error handling -->
+    
+    
+    <!-- BEGIN Observation-level error handling -->
+    <int:channel id="observationErrorChannel" />
+    
+    <!-- Convert the incoming object into an ErrorDetails Object -->
+    <int:transformer id="obsErrorFormatter" input-channel="observationErrorChannel"
+            output-channel="processObsErrorChannel">
+        <bean class="com.srchaven.siwa.errorhandling.transformers.ErrorDetailsBuilder" />
     </int:transformer>
+
+    <int:channel id="processObsErrorChannel" />
+
+    <!-- Log the error -->
+    <int:service-activator id="obsErrorHandler" input-channel="processObsErrorChannel"
+            output-channel="sourceFileDeletionObservationAggregatorChannel">
+        <bean class="com.srchaven.siwa.errorhandling.services.ObservationErrorHandler" />
+    </int:service-activator>
+
+    <!-- END Observation-level error handling -->
+
 </beans>

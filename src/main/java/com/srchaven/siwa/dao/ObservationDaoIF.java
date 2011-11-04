@@ -4,5 +4,5 @@ import com.srchaven.siwa.model.Observation;
 
 public interface ObservationDaoIF
 {
-	public void saveObservation(Observation obs);
+    public void saveObservation(Observation obs);
 }
