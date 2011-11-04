@@ -43,7 +43,7 @@ public class ObservationAggregator
             {
                 ErrorDetails errDet = (ErrorDetails) payload;
 
-                if (!(errDet.getFailedMessage() instanceof Observation))
+                if (!(errDet.getFailedMessage().getPayload() instanceof Observation))
                 {
                     LOGGER.error("Error description with payload of type \""
                             + errDet.getFailedMessage().getClass().getName()

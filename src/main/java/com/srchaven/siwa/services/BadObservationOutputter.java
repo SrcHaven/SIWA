@@ -52,20 +52,29 @@ public class BadObservationOutputter
         }
 
         File errLog = new File(errorDirectory, origFile.getName() + ".errlog");
-
         FileWriter errLogWriter = null;
+        BufferedWriter buffErrLogWriter = null;
 
-        BufferedWriter buffWriter = null;
+        File errFile = new File(errorDirectory, origFile.getName());
+        FileWriter errFileWriter = null;
+        BufferedWriter buffErrFileWriter = null;
 
         try
         {
             errLogWriter = new FileWriter(errLog);
+            buffErrLogWriter = new BufferedWriter(errLogWriter);
 
-            buffWriter = new BufferedWriter(errLogWriter);
+            errFileWriter = new FileWriter(errFile);
+            buffErrFileWriter = new BufferedWriter(errFileWriter);
 
             for (ErrorDetails errDet : errorDetailsList)
             {
-                buffWriter.write(errDet.generateErrorDescription());
+                buffErrLogWriter.write(errDet.generateErrorDescription());
+                
+                if (errDet.getFailedMessage().getPayload() instanceof Observation)
+                {
+                    errFileWriter.write(((Observation)errDet.getFailedMessage().getPayload()).getSourceString());
+                }
             }
         } catch (IOException error)
         {
@@ -73,22 +82,42 @@ public class BadObservationOutputter
         }
         finally
         {
-            if (buffWriter != null)
+            if (buffErrLogWriter != null)
             {
                 try
                 {
-                    buffWriter.close();
+                    buffErrLogWriter.close();
+                } catch (IOException error)
+                {
+                    LOGGER.error("Error closing IO stream while writing error log. Exception: " + error.getMessage());
+                }
+            }
+            if (errLogWriter != null)
+            {
+                try
+                {
+                    errLogWriter.close();
                 } catch (IOException error)
                 {
                     LOGGER.error("Error closing IO stream while writing error log. Exception: " + error.getMessage());
                 }
             }
 
-            if (errLogWriter != null)
+            if (buffErrFileWriter != null)
             {
                 try
                 {
-                    errLogWriter.close();
+                    buffErrFileWriter.close();
+                } catch (IOException error)
+                {
+                    LOGGER.error("Error closing IO stream while writing error log. Exception: " + error.getMessage());
+                }
+            }
+            if (errFileWriter != null)
+            {
+                try
+                {
+                    errFileWriter.close();
                 } catch (IOException error)
                 {
                     LOGGER.error("Error closing IO stream while writing error log. Exception: " + error.getMessage());
