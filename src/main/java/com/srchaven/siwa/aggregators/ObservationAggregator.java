@@ -19,34 +19,35 @@ public class ObservationAggregator
     private static final Logger LOGGER = Logger.getLogger(ObservationAggregator.class);
 
     @Aggregator
-    public AggregatedObservations aggregate(List<Message<? extends AbstractObservation>> messages)
+    public AggregatedObservations aggregate(List<Message<List<? extends AbstractObservation>>> messages)
     {
         List<Observation> goodObservations = new LinkedList<Observation>();
         List<ErrorObservation> badObservations = new LinkedList<ErrorObservation>();
 
-//TODO: We really should make sure the filenames match on ALL the messages--right now we just grab the first one that comes along
+//TODO: We really should make sure the filenames match on ALL the messages--right now we just grab the last one
         String filename = null;
 
         AbstractObservation currPayload = null;
-        for (Message<? extends AbstractObservation> msg : messages)
+        for (Message<List<? extends AbstractObservation>> currBatch : messages)
         {
-            currPayload = msg.getPayload();
-
-            if (currPayload instanceof Observation)
+            List<? extends AbstractObservation> currBatchList = currBatch.getPayload();
+            for (AbstractObservation currObs : currBatchList)
             {
-                Observation currObs = (Observation) currPayload;
-                goodObservations.add(currObs);
-            }
-            else if (currPayload instanceof ErrorObservation)
-            {
-                badObservations.add((ErrorObservation)currPayload);
-            }
-            else
-            {
-                //TODO: This is a bad solution. We need to figure out what to do here.
-                LOGGER.fatal("Aggregator received message of unsupported type \"" + currPayload.getClass().getName()
-                        + "\"");
-                System.exit(1);
+                if (currObs instanceof Observation)
+                {
+                    goodObservations.add((Observation) currObs);
+                }
+                else if (currObs instanceof ErrorObservation)
+                {
+                    badObservations.add((ErrorObservation)currPayload);
+                }
+                else
+                {
+//TODO: This is a bad solution. We need to figure out what to do here.
+                    LOGGER.fatal("Aggregator received message of unsupported type \"" + currPayload.getClass().getName()
+                            + "\"");
+                    System.exit(1);
+                }
             }
         }
         
