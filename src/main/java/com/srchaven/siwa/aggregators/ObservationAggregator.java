@@ -1,6 +1,5 @@
 package com.srchaven.siwa.aggregators;
 
-import com.srchaven.siwa.errorhandling.model.ErrorDetails;
 import com.srchaven.siwa.model.AbstractObservation;
 import com.srchaven.siwa.model.AggregatedObservations;
 import com.srchaven.siwa.model.ErrorObservation;

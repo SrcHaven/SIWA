@@ -63,8 +63,7 @@ public class ObservationErrorHandler
             }
         }
         
-        return MessageBuilder.withPayload(errorObsList).setHeader(FileHeaders.FILENAME,
-                failedObsList.get(0).getFilename()).build();
+        return MessageBuilder.withPayload(errorObsList).copyHeaders(errDet.getFailedMessage().getHeaders()).build();
     }
 
 }
