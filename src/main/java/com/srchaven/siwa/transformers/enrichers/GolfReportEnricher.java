@@ -7,11 +7,11 @@ import org.springframework.integration.annotation.Transformer;
 
 import com.srchaven.siwa.model.Observation;
 import com.srchaven.siwa.model.SupplementalReport;
-import com.srchaven.siwa.retired.routers.GolfReportRouter;
 import com.srchaven.siwa.util.FileNameUtils;
+import java.util.List;
 
 /**
- * Enricher that adds the a fake "golfing quality report" to a record. The golfing quality is based on state, as
+ * Enricher that adds the a fake "golfing quality report" to a observation. The golfing quality is based on state, as
  * follows:
  * 
  * <ul>
@@ -21,6 +21,7 @@ import com.srchaven.siwa.util.FileNameUtils;
  * <li>All others: "No golfing available."
  * </ul>
  */
+//TODO: JavaDocs
 public class GolfReportEnricher
 {
     private static final Logger LOGGER = Logger.getLogger(GolfReportEnricher.class);
@@ -28,7 +29,18 @@ public class GolfReportEnricher
     private static final String REPORT_TYPE = "GolfReport";
 
     @Transformer
-    public Observation enrich(Observation observation) throws IOException
+    public List<Observation> enrich(List<Observation> observationList)
+    {
+        for (Observation currObs : observationList)
+        {
+            enrich(currObs);
+        }
+        
+        return observationList;
+    }
+    
+    @Transformer
+    public Observation enrich(Observation observation)
     {
         LOGGER.trace("Message before golf enrichment: " + observation);
         String state = FileNameUtils.extractState(observation.getFilename());

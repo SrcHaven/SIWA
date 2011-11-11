@@ -1,37 +1,28 @@
 package com.srchaven.siwa.model;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
  * Carrier for the source String for an Observation. Although we could pass the raw string through the messaging
  * framework, providing our own wrapper allows us to implement the common {@code ObservationSourceStringCarrier} 
  * interface, simplifying error handling.
  */
-public class RawObservation implements ObservationSourceStringCarrierIF
+//TODO: JavaDocs
+public class RawObservation extends AbstractObservation
 {
-    private final String obsAsString;
+    private final List<String> observationFieldVals;
 
-    private final String filename;
-
-    public RawObservation(String obs, String filename)
+    //NOTE FOR JAVADOCS: No defensive copying for performance reasons
+    public RawObservation(String filename, int lineNumber, List<String> observationFieldVals)
     {
-        this.obsAsString = obs;
-        this.filename = filename;
+        super(filename, lineNumber);
+        
+        this.observationFieldVals = Collections.unmodifiableList(observationFieldVals);
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public String getSourceString()
+    public List<String> getObservationFieldVals()
     {
-        return obsAsString;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public String getFilename()
-    {
-        return filename;
+        return observationFieldVals;
     }
 }

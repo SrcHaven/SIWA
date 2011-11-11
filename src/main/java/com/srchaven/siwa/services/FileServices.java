@@ -166,33 +166,44 @@ public class FileServices
      *
      * @param aggObs the aggregated observations associated with the file being deleted.
      *
-     * @return the inputed list of records
+     * @return the inputed list of observations
      */
     public AggregatedObservations deleteSourceFile(AggregatedObservations aggObs)
     {
 //TODO: Input validation
-//TODO: Make sure all records are from the same file (?)
+//TODO: Make sure all observations are from the same file (?)
         String filename = aggObs.getFilename();
         new File(processingDirectory, filename).delete();
-        LOGGER.trace("All records received that originated in " + filename + ". Deleted.");
+        LOGGER.trace("All observations received that originated in " + filename + ". Deleted.");
         return aggObs;
     }
 
     /**
-     * Moves a file to the error directory. Used in the event that a file is not processable.
+     * Moves a file to the error directory. Used in the event that a file is not processable or has errors.
      *
-     * @param records
+     * @param observations a {@code List} of {@code Observations}. The filename from the first {@code Observation} is
+     *      used as the source filename for the move.
      *
-     * @return
+     * @return the {@code List} of {@code Observations} passed in as {@code observations}.
      */
-    public List<Observation> moveFileToErrorDirectory(List<Observation> records)
+    public List<Observation> moveFileToErrorDirectory(List<Observation> observations)
     {
 //TODO: Input validation
-        // Get the filename where the incomplete set of records originated
-        String filename = records.get(0).getFilename();
-        LOGGER.trace("Received incomplete set of records that originated in " + filename + ".");
-
-        // move file with problems to error directory
+        // Get the filename where the incomplete set of observations originated
+        String filename = observations.get(0).getFilename();
+        
+        moveFileToErrorDirectory(filename);
+        
+        return observations;
+    }
+    
+    /**
+     * Moves a file to the error directory. Used in the event that a file is not processable or has errors.
+     * 
+     * @param filename the filename of a file in the processing directory to move to the error directory.
+     */
+    public void moveFileToErrorDirectory(String filename)
+    {
         File fileInProcessingDirectory = new File(processingDirectory, filename);
         File fileInErrorDirectory = new File(errorDirectory, filename);
         fileInProcessingDirectory.renameTo(fileInErrorDirectory);
@@ -200,8 +211,6 @@ public class FileServices
 
         LOGGER.info("Moved file with errors from " + fileInProcessingDirectory.getPath() + " to "
                 + fileInErrorDirectory.getPath());
-
-        return records;
     }
 
     /**

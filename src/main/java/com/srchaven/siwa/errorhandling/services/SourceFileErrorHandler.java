@@ -46,7 +46,7 @@ public class SourceFileErrorHandler
     public ErrorDetails receive(ErrorDetails errDet)
     {
 
-        // get the filename where the incomplete set of records originated
+        // get the filename where the incomplete set of observations originated
         Object failedPayload = errDet.getFailedMessage().getPayload();
 
         if (!(failedPayload instanceof File))

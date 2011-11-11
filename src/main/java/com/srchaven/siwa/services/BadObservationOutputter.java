@@ -1,14 +1,14 @@
 package com.srchaven.siwa.services;
 
-import com.srchaven.siwa.errorhandling.model.ErrorDetails;
 import com.srchaven.siwa.model.AggregatedObservations;
-import com.srchaven.siwa.model.Observation;
+import com.srchaven.siwa.model.ErrorObservation;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
 import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.integration.annotation.ServiceActivator;
 
 /**
@@ -20,6 +20,23 @@ public class BadObservationOutputter
 
     /** Reference to the error logging directory */
     private File errorDirectory;
+
+    /** Flag that indicates if error messages should have error details included. */
+    private boolean outputErrorDetails = false;
+    
+    /** File services--used to move files with errors into the error directory */
+    @Autowired
+    private FileServices fileServices;
+
+    /**
+     * Setter.
+     * 
+     * @param outputErrorDetails flag that indicates if error messages should have error details included.
+     */
+    public void setOutputErrorDetails(boolean outputErrorDetails)
+    {
+        this.outputErrorDetails = outputErrorDetails;
+    }
 
     /**
      * Setter.
@@ -39,7 +56,7 @@ public class BadObservationOutputter
             return aggObs;
         }
 
-        List<ErrorDetails> errorDetailsList = aggObs.getBadObservations();
+        List<ErrorObservation> badObsList = aggObs.getBadObservations();
 
         String sourceFilename = aggObs.getFilename();
 
@@ -50,59 +67,44 @@ public class BadObservationOutputter
             LOGGER.fatal("File \"" + origFile.getAbsolutePath() + "\" went missing during processing.");
             System.exit(1);
         }
+        
+        writeErrorFile(origFile, badObsList);
+        
+        if (outputErrorDetails)
+        {
+            writeErrorDetails(origFile, badObsList);
+        }
+        
+        //NOTE: This is the last operation so that if there is a problem during the move we can still try to reconstruct
+        // the file from the archive directory (because at least the .errors and possibly .error_details files will be
+        // written prior to this call).
+        fileServices.moveFileToErrorDirectory(sourceFilename);
 
-        File errLog = new File(errorDirectory, origFile.getName() + ".errlog");
-        FileWriter errLogWriter = null;
-        BufferedWriter buffErrLogWriter = null;
-
-        File errFile = new File(errorDirectory, origFile.getName());
+        return aggObs;
+    }
+    
+    private void writeErrorFile(File origFile, List<ErrorObservation> badObsList)
+    {
+        File errFile = new File(errorDirectory, origFile.getName() + ".errors");
         FileWriter errFileWriter = null;
         BufferedWriter buffErrFileWriter = null;
-
+        
         try
         {
-            errLogWriter = new FileWriter(errLog);
-            buffErrLogWriter = new BufferedWriter(errLogWriter);
-
             errFileWriter = new FileWriter(errFile);
             buffErrFileWriter = new BufferedWriter(errFileWriter);
 
-            for (ErrorDetails errDet : errorDetailsList)
+            for (ErrorObservation currBadObs : badObsList)
             {
-                buffErrLogWriter.write(errDet.generateErrorDescription());
-                
-                if (errDet.getFailedMessage().getPayload() instanceof Observation)
-                {
-                    errFileWriter.write(((Observation)errDet.getFailedMessage().getPayload()).getSourceString());
-                }
+                buffErrFileWriter.append(Integer.toString(currBadObs.getLineNumber()));
+                buffErrFileWriter.newLine();
             }
         } catch (IOException error)
         {
-            LOGGER.error("Error writing error log. Exception: " + error.getMessage());
+            LOGGER.error("Error writing error file. Exception: " + error.getMessage());
         }
         finally
         {
-            if (buffErrLogWriter != null)
-            {
-                try
-                {
-                    buffErrLogWriter.close();
-                } catch (IOException error)
-                {
-                    LOGGER.error("Error closing IO stream while writing error log. Exception: " + error.getMessage());
-                }
-            }
-            if (errLogWriter != null)
-            {
-                try
-                {
-                    errLogWriter.close();
-                } catch (IOException error)
-                {
-                    LOGGER.error("Error closing IO stream while writing error log. Exception: " + error.getMessage());
-                }
-            }
-
             if (buffErrFileWriter != null)
             {
                 try
@@ -124,7 +126,61 @@ public class BadObservationOutputter
                 }
             }
         }
+    }
+    
+    private void writeErrorDetails(File origFile, List<ErrorObservation> badObsList)
+    {
+        File errDetails = new File(errorDirectory, origFile.getName() + ".error_details");
+        FileWriter errDetailsWriter = null;
+        BufferedWriter buffErrDetailsWriter = null;
 
-        return aggObs;
+        try
+        {
+            errDetailsWriter = new FileWriter(errDetails);
+            buffErrDetailsWriter = new BufferedWriter(errDetailsWriter);
+
+            for (ErrorObservation currBadObs : badObsList)
+            {
+                buffErrDetailsWriter.append("@@@START_RECORD@@@");
+                buffErrDetailsWriter.newLine();
+                
+                buffErrDetailsWriter.append("Details for error on line: ");
+                buffErrDetailsWriter.append(Integer.toString(currBadObs.getLineNumber()));
+                buffErrDetailsWriter.newLine();
+                
+                buffErrDetailsWriter.append(currBadObs.getErrorDescription());
+                buffErrDetailsWriter.newLine();
+                
+                buffErrDetailsWriter.append("@@@END_RECORD@@@");
+                buffErrDetailsWriter.newLine();
+                buffErrDetailsWriter.newLine();
+            }
+        } catch (IOException error)
+        {
+            LOGGER.error("Error writing error details. Exception: " + error.getMessage());
+        }
+        finally
+        {
+            if (buffErrDetailsWriter != null)
+            {
+                try
+                {
+                    buffErrDetailsWriter.close();
+                } catch (IOException error)
+                {
+                    LOGGER.error("Error closing IO stream while writing error log. Exception: " + error.getMessage());
+                }
+            }
+            if (errDetailsWriter != null)
+            {
+                try
+                {
+                    errDetailsWriter.close();
+                } catch (IOException error)
+                {
+                    LOGGER.error("Error closing IO stream while writing error log. Exception: " + error.getMessage());
+                }
+            }
+        }
     }
 }

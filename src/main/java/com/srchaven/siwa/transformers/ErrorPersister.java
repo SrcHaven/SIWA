@@ -16,13 +16,13 @@ public class ErrorPersister
     private File errorDirectory = new File("C:\\Temp\\SpringIntegrationExample\\error");
 
     @Transformer
-    public Observation persist(Observation record) throws Exception
+    public Observation persist(Observation observation) throws Exception
     {
-        File errorFile = new File(errorDirectory, record.getFilename());
-        LOGGER.trace("Storing record in error file (" + errorFile.getAbsolutePath() + "): " + record);
-        // LOGGER.info("Persisted record to " + databaseDumpFile.getPath());
+        File errorFile = new File(errorDirectory, observation.getFilename());
+        LOGGER.trace("Storing observation in error file (" + errorFile.getAbsolutePath() + "): " + observation);
+        // LOGGER.info("Persisted observation to " + databaseDumpFile.getPath());
 
-        return record; // original record so something can look for all records
+        return observation; // original observation so something can look for all observations
         // and delete input file
     }
 }

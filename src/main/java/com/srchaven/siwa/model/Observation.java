@@ -13,22 +13,17 @@ import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
-import javax.persistence.Transient;
 
 /**
  * Data model for weather observations.
  */
 @Entity
 @Table(catalog = "weather_data", name = "observations")
-public class Observation implements ObservationSourceStringCarrierIF
+public class Observation extends AbstractObservation
 {
     private int observationID;
 
-    private String filename;
-
-    /** The source string for this Observation (the line from the input file) */
-    private String sourceString;
-    // Example Record:
+    // Example observation:
     // 26655 20110101 0100 20101231 1600 2.404 -162.92 68.03 -19.9 -20.0 -18.5 -20.4
     // cols 1 -- 5 [5 chars] WBANNO
 
@@ -91,7 +86,7 @@ public class Observation implements ObservationSourceStringCarrierIF
     /**
      * Average temperature during the last 5 minutes of the hour.
      *
-     * Note: USCRN/USRCRN stations have multiple co-located temperature sensors that record independent measurements.
+     * Note: USCRN/USRCRN stations have multiple co-located temperature sensors that observation independent measurements.
      * This value is a single temperature number that is calculated from the multiple independent measurements.
      */
     private String tCalc;
@@ -103,7 +98,7 @@ public class Observation implements ObservationSourceStringCarrierIF
     /**
      * Average temperature during the entire hour.
      *
-     * Note: USCRN/USRCRN stations have multiple co-located temperature sensors that record independent measurements.
+     * Note: USCRN/USRCRN stations have multiple co-located temperature sensors that observation independent measurements.
      * This value is a single temperature number that is calculated from the multiple independent measurements.
      */
     private String tHrAvg;
@@ -115,7 +110,7 @@ public class Observation implements ObservationSourceStringCarrierIF
     /**
      * Maximum temperature during the hour.
      *
-     * Note: USCRN/USRCRN stations have multiple co-located temperature sensors that record independent measurements.
+     * Note: USCRN/USRCRN stations have multiple co-located temperature sensors that observation independent measurements.
      * This value is a single temperature number that is calculated from the multiple independent measurements. The
      * independent measurements are the maximum for each sensor of 5-minute average temperatures measured every 10
      * seconds during the hour.
@@ -129,7 +124,7 @@ public class Observation implements ObservationSourceStringCarrierIF
     /**
      * Minimum temperature during the hour.
      *
-     * Note: USCRN/USRCRN stations have multiple co-located temperature sensors that record independent measurements.
+     * Note: USCRN/USRCRN stations have multiple co-located temperature sensors that observation independent measurements.
      * This value is a single temperature number that is calculated from the multiple independent measurements. The
      * independent measurements are the minimum for each sensor of 5-minute average temperatures measured every 10
      * seconds during the hour.
@@ -153,23 +148,22 @@ public class Observation implements ObservationSourceStringCarrierIF
 //TODO: Better parameter validation
 //TODO: Use individual parameters instead of an array
 //TODO: Enum for temperature unit instead of char 
-    public Observation(String sourceString, String filename, String[] fields, char temperatureUnit)
+    public Observation(String filename, int lineNumber, List<String> fieldVals, char temperatureUnit)
     {
-        this.sourceString = sourceString;
-
-        this.filename = filename;
-        this.wbanNo = fields[0];
-        this.utcDate = fields[1];
-        this.utcTime = fields[2];
-        this.lstDate = fields[3];
-        this.lstTime = fields[4];
-        this.crxVn = fields[5];
-        this.longitude = fields[6];
-        this.latitude = fields[7];
-        this.tCalc = fields[8];
-        this.tHrAvg = fields[9];
-        this.tMax = fields[10];
-        this.tMin = fields[11];
+        super(filename, lineNumber);
+        
+        this.wbanNo = fieldVals.get(0);
+        this.utcDate = fieldVals.get(1);
+        this.utcTime = fieldVals.get(2);
+        this.lstDate = fieldVals.get(3);
+        this.lstTime = fieldVals.get(4);
+        this.crxVn = fieldVals.get(5);
+        this.longitude = fieldVals.get(6);
+        this.latitude = fieldVals.get(7);
+        this.tCalc = fieldVals.get(8);
+        this.tHrAvg = fieldVals.get(9);
+        this.tMax = fieldVals.get(10);
+        this.tMin = fieldVals.get(11);
 
         this.supplementalReports = new ArrayList<SupplementalReport>();
     }
@@ -195,27 +189,6 @@ public class Observation implements ObservationSourceStringCarrierIF
     public void setObservationID(int observationID)
     {
         this.observationID = observationID;
-    }
-
-    /**
-     * Getter.
-     *
-     * @return the file that this report was extracted from.
-     */
-    @Transient
-    public String getFilename()
-    {
-        return filename;
-    }
-
-    /**
-     * Setter.
-     *
-     * @param filename the file that this report was extracted from.
-     */
-    public void setFilename(String filename)
-    {
-        this.filename = filename;
     }
 
     /**
@@ -472,7 +445,7 @@ public class Observation implements ObservationSourceStringCarrierIF
      * Getter.
      *
      * @return average temperature during the last 5 minutes of the hour. Note: USCRN/USRCRN stations have multiple
-     *         co-located temperature sensors that record independent measurements. This value is a single temperature
+     *         co-located temperature sensors that observation independent measurements. This value is a single temperature
      *         number that is calculated from the multiple independent measurements.
      */
     @Column(name = "tCalc", length = TCALC_MAX_LENGTH)
@@ -485,7 +458,7 @@ public class Observation implements ObservationSourceStringCarrierIF
      * Setter.
      *
      * @param tCalc average temperature during the last 5 minutes of the hour. Note: USCRN/USRCRN stations have multiple
-     *            co-located temperature sensors that record independent measurements. This value is a single
+     *            co-located temperature sensors that observation independent measurements. This value is a single
      *            temperature number that is calculated from the multiple independent measurements. Maximum length is
      *            {@code TCALC_MAX_LENGTH}.
      *
@@ -506,7 +479,7 @@ public class Observation implements ObservationSourceStringCarrierIF
      * Getter.
      *
      * @return average temperature during the entire hour. Note: USCRN/USRCRN stations have multiple co-located
-     *         temperature sensors that record independent measurements. This value is a single temperature number that
+     *         temperature sensors that observation independent measurements. This value is a single temperature number that
      *         is calculated from the multiple independent measurements.
      */
     @Column(name = "tHrAvg", length = THRAVG_MAX_LENGTH)
@@ -519,7 +492,7 @@ public class Observation implements ObservationSourceStringCarrierIF
      * Setter.
      *
      * @param tHrAvg average temperature during the entire hour. Note: USCRN/USRCRN stations have multiple co-located
-     *            temperature sensors that record independent measurements. This value is a single temperature number
+     *            temperature sensors that observation independent measurements. This value is a single temperature number
      *            that is calculated from the multiple independent measurements. Maximum length is
      *            {@code THRAVG_MAX_LENGTH}.
      *
@@ -540,7 +513,7 @@ public class Observation implements ObservationSourceStringCarrierIF
      * Getter.
      *
      * @return maximum temperature during the hour. Note: USCRN/USRCRN stations have multiple co-located temperature
-     *         sensors that record independent measurements. This value is a single temperature number that is
+     *         sensors that observation independent measurements. This value is a single temperature number that is
      *         calculated from the multiple independent measurements. The independent measurements are the maximum for
      *         each sensor of 5-minute average temperatures measured every 10 seconds during the hour.
      */
@@ -554,7 +527,7 @@ public class Observation implements ObservationSourceStringCarrierIF
      * Setter.
      *
      * @param tMax maximum temperature during the hour. Note: USCRN/USRCRN stations have multiple co-located temperature
-     *            sensors that record independent measurements. This value is a single temperature number that is
+     *            sensors that observation independent measurements. This value is a single temperature number that is
      *            calculated from the multiple independent measurements. The independent measurements are the maximum
      *            for each sensor of 5-minute average temperatures measured every 10 seconds during the hour. Maximum
      *            length is {@code TMAX_MAX_LENGTH}.
@@ -576,7 +549,7 @@ public class Observation implements ObservationSourceStringCarrierIF
      * Getter.
      *
      * @return minimum temperature during the hour. Note: USCRN/USRCRN stations have multiple co-located temperature
-     *         sensors that record independent measurements. This value is a single temperature number that is
+     *         sensors that observation independent measurements. This value is a single temperature number that is
      *         calculated from the multiple independent measurements. The independent measurements are the minimum for
      *         each sensor of 5-minute average temperatures measured every 10 seconds during the hour.
      */
@@ -590,7 +563,7 @@ public class Observation implements ObservationSourceStringCarrierIF
      * Setter.
      *
      * @param tMin minimum temperature during the hour. Note: USCRN/USRCRN stations have multiple co-located temperature
-     *            sensors that record independent measurements. This value is a single temperature number that is
+     *            sensors that observation independent measurements. This value is a single temperature number that is
      *            calculated from the multiple independent measurements. The independent measurements are the minimum
      *            for each sensor of 5-minute average temperatures measured every 10 seconds during the hour. Maximum
      *            length is {@code TMIN_MAX_LENGTH}.
@@ -689,22 +662,13 @@ public class Observation implements ObservationSourceStringCarrierIF
     /**
      * {@inheritDoc}
      */
-    @Transient
-    @Override
-    public String getSourceString()
-    {
-        return sourceString;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String toString()
     {
         StringBuilder builder = new StringBuilder();
         builder.append("Observation [");
         builder.append("filename=").append(filename);
+        builder.append(", lineNumber=").append(lineNumber);
         builder.append(", wbanNo=").append(wbanNo);
         builder.append(", utcDate=").append(utcDate);
         builder.append(", utcTime=").append(utcTime);

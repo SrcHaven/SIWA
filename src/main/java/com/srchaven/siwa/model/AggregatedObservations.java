@@ -12,15 +12,15 @@ public class AggregatedObservations
 {
     private final List<Observation> goodObservations;
 
-    private final List<ErrorDetails> badObservations;
+    private final List<ErrorObservation> badObservations;
 
     private final String filename;
 
-    public AggregatedObservations(List<Observation> goodObservations, List<ErrorDetails> badObservations,
+    public AggregatedObservations(List<Observation> goodObservations, List<ErrorObservation> badObservations,
             String filename)
     {
         this.goodObservations = new ArrayList<Observation>(goodObservations);
-        this.badObservations = new ArrayList<ErrorDetails>(badObservations);
+        this.badObservations = new ArrayList<ErrorObservation>(badObservations);
         this.filename = filename;
     }
 
@@ -29,7 +29,7 @@ public class AggregatedObservations
         return Collections.unmodifiableList(goodObservations);
     }
 
-    public List<ErrorDetails> getBadObservations()
+    public List<ErrorObservation> getBadObservations()
     {
         return Collections.unmodifiableList(badObservations);
     }

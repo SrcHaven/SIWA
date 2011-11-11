@@ -6,9 +6,10 @@ import org.apache.log4j.Logger;
 import org.springframework.integration.annotation.Transformer;
 
 import com.srchaven.siwa.model.Observation;
+import java.util.List;
 
 /**
- * Transformer that converts a record's temperature from Celsius to Fahrenheit.
+ * Transformer that converts a observation's temperature from Celsius to Fahrenheit.
  */
 //TODO: This is overkill now. Simplify it. Perhaps simply have a hard min/max cap?
 public class ToFahrenheitTransformer
@@ -18,25 +19,43 @@ public class ToFahrenheitTransformer
 
     /** Max string length of result */
     private static final int MAX_LENGTH = 7;
-
+    
     /**
-     * Converts a record's temperature from Celsius to Fahrenheit.
-     *
-     * @param record the record to convert.
-     *
-     * @return the converted record.
+     * Convert a batch of observations' temperature from Celsius to Fahrenheit.
+     * 
+     * @param observationList the list of observations to convert.
+     * 
+     * @return the converted observations.
      */
     @Transformer
-    public Observation transform(Observation record)
+    public List<Observation> transform(List<Observation> observationList)
     {
-        LOGGER.trace("Message before transformation to Fahrenheit: " + record);
+        for (Observation currObs : observationList)
+        {
+            transform(currObs);
+        }
+        
+        return observationList;
+    }
+
+    /**
+     * Converts a observation's temperature from Celsius to Fahrenheit.
+     *
+     * @param observation the observation to convert.
+     *
+     * @return the converted observation.
+     */
+    @Transformer
+    public Observation transform(Observation observation)
+    {
+        LOGGER.trace("Observation before transformation to Fahrenheit: " + observation);
         // fields that store temperature data: tCalc tHrAvg tMax tMin
-        record.settCalc(safelyConvertToFahrenheitString(record.gettCalc()));
-        record.settHrAvg(safelyConvertToFahrenheitString(record.gettHrAvg()));
-        record.settMax(safelyConvertToFahrenheitString(record.gettMax()));
-        record.settMin(safelyConvertToFahrenheitString(record.gettMin()));
-        LOGGER.trace("Message after transformation to Fahrenheit:  " + record);
-        return record;
+        observation.settCalc(safelyConvertToFahrenheitString(observation.gettCalc()));
+        observation.settHrAvg(safelyConvertToFahrenheitString(observation.gettHrAvg()));
+        observation.settMax(safelyConvertToFahrenheitString(observation.gettMax()));
+        observation.settMin(safelyConvertToFahrenheitString(observation.gettMin()));
+        LOGGER.trace("Observation after transformation to Fahrenheit:  " + observation);
+        return observation;
     }
 
     /**

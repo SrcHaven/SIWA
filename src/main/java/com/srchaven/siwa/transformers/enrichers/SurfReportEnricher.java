@@ -9,11 +9,11 @@ import org.springframework.jmx.export.annotation.ManagedResource;
 
 import com.srchaven.siwa.model.Observation;
 import com.srchaven.siwa.model.SupplementalReport;
-import com.srchaven.siwa.retired.routers.SurfReportRouter;
 import com.srchaven.siwa.util.FileNameUtils;
+import java.util.List;
 
 /**
- * Enricher that adds the a fake "surfing quality report" to a record. The surfing quality is based on state, as
+ * Enricher that adds the a fake "surfing quality report" to a observation. The surfing quality is based on state, as
  * follows:
  * 
  * <ul>
@@ -25,6 +25,7 @@ import com.srchaven.siwa.util.FileNameUtils;
  * </ul>
  */
 // TODO: Why is this a managed resource? I don't see any JMX calls in the class!
+//TODO: JavaDocs
 @ManagedResource
 public class SurfReportEnricher
 {
@@ -35,11 +36,22 @@ public class SurfReportEnricher
     private final AtomicInteger counter = new AtomicInteger(0);
 
     @Transformer
-    public Observation enrich(Observation record) throws IOException
+    public List<Observation> enrich(List<Observation> observationList)
+    {
+        for (Observation currObs : observationList)
+        {
+            enrich(currObs);
+        }
+        
+        return observationList;
+    }
+
+    @Transformer
+    public Observation enrich(Observation observation)
     {
         counter.incrementAndGet();
-        // LOGGER.trace("Message before surf report enrichment: " + record);
-        String state = FileNameUtils.extractState(record.getFilename());
+        // LOGGER.trace("Message before surf report enrichment: " + observation);
+        String state = FileNameUtils.extractState(observation.getFilename());
         String surfReport = "No surfing available.";
         if (state.equals("CA"))
         {
@@ -57,11 +69,11 @@ public class SurfReportEnricher
         {
             surfReport = "Surfing is ok!";
         }
-        record.addSupplementalReport(new SupplementalReport(REPORT_TYPE, surfReport));
+        observation.addSupplementalReport(new SupplementalReport(REPORT_TYPE, surfReport));
         LOGGER.trace(counter.get() + "==" + Thread.currentThread().getName()
-                + ":Message after surf report enrichment: " + record);
-        // LOGGER.trace("Message after surf report enrichment:  " + record);
+                + ":Message after surf report enrichment: " + observation);
+        // LOGGER.trace("Message after surf report enrichment:  " + observation);
         counter.decrementAndGet();
-        return record;
+        return observation;
     }
 }

@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import com.srchaven.siwa.dao.ObservationDaoIF;
 import com.srchaven.siwa.model.Observation;
+import java.util.List;
 
 /**
  * Service endpoint used to persists an {@code Observation} object by storing in a database.
@@ -42,6 +43,21 @@ public class DatabaseDumpPersister
 
         observationDao = dao;
     }
+    
+    /**
+     * Service that persists a {@code List} of {@code Observation} objects by storing them in a database.
+     *
+     * @param obsList the {@code List} of {@code Observation} objects to persist
+     */
+    public List<Observation> persist(List<Observation> obsList)
+    {
+        for (Observation currObs : obsList)
+        {
+            persist(currObs);
+        }
+        
+        return obsList;
+    }
 
     /**
      * Service that persists an {@code Observation} object by storing in a database.
@@ -52,11 +68,11 @@ public class DatabaseDumpPersister
     {
         long msgCount = persistedCount.incrementAndGet();
         LOGGER.trace(msgCount + " Persisting: " + obs);
-        // LOGGER.info("Persisted record to " + databaseDumpFile.getPath());
+        // LOGGER.info("Persisted observation to " + databaseDumpFile.getPath());
 
         if (msgCount == failOnMessageNum)
         {
-            throw new RuntimeException("TEST: Unable to persist record: " + obs);
+            throw new RuntimeException("TEST: Unable to persist observation: " + obs);
         }
 
         observationDao.saveObservation(obs);
